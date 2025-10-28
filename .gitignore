@@ -1,4 +1,3 @@
-backend/**
 .netlify
 .env
 node_modules
