@@ -1,0 +1,21 @@
+{
+    "grades": {
+        "237": {
+            "first_quarter": "80"
+        }
+    },
+    "shssf2": {
+        "january_status": "NO INPUT",
+        "february_status": "NO INPUT",
+        "march_status": "NO INPUT",
+        "april_status": "NO INPUT",
+        "may_status": "NO INPUT",
+        "june_status": "ENCODED",
+        "july_status": "NO INPUT",
+        "august_status": "ENCODED",
+        "september_status": "NO INPUT",
+        "october_status": "ENCODED",
+        "november_status": "NO INPUT",
+        "december_status": "NO INPUT"
+    }
+}
