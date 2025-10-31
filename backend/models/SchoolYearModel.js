@@ -10,6 +10,18 @@ const SchoolYear = sequelize.define(
         school_year: {
             type: DataTypes.STRING,
             defaultValue: "2024-2025"
+        },
+        isGrade11Created: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        isGrade12Created: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        isPublished: { 
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     },
     {

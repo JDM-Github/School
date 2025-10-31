@@ -1,7 +1,9 @@
-import { Home, Search, LogOut } from "lucide-react";
+import { Home, Search, LogOut, Key } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import Cookies from "js-cookie";
+import { useAuth } from "../context/auth";
+import AdviserPasswordManager from "../components/dashboard/changePassword";
 
 const navItems = [
     { name: "Dashboard", path: "/" },
@@ -22,6 +24,7 @@ const navItems = [
 ];
 
 export default function Header() {
+    const { user, role } = useAuth();
     const location = useLocation();
 
     const currentPage = useMemo(() => {
@@ -35,6 +38,10 @@ export default function Header() {
         localStorage.removeItem("user");
         navigate("/");
         window.location.reload();
+    }
+
+    const updatePassword = async () => {
+        alert(JSON.stringify(user));
     }
 
     // const [showNotifications, setShowNotifications] = useState(false);
@@ -268,6 +275,7 @@ export default function Header() {
                         <Search size={20} />
                     </div>
 
+                    <AdviserPasswordManager role={role || "admin"} user={user}/>
                     <button
                         onClick={handleLogout}
                         className="p-2 bg-red-500 rounded-lg cursor-pointer hover:bg-red-300 transition"

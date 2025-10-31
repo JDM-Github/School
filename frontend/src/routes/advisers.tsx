@@ -159,6 +159,7 @@ export default function Advisers() {
                             selectedSection={selectedSection}
                             selectedSubjects={selectedSubjects}
                             selectedProgram={selectedProgram}
+                            fetchAdvisers={fetchAdvisers}
                         />
                     </>
                 )}

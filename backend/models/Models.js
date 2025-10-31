@@ -181,4 +181,5 @@ module.exports = {
 	AdviserAccount: require("./AdviserAccountModel.js"),
 	SchoolYear: require("./SchoolYearModel.js"),
 	StudentGrade,
+	VisionMission: require("./VisionMissionModel.js"),
 };

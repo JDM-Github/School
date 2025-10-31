@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import * as XLSX from "xlsx";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Month, Student } from "../../../lib/type";
 import { Card } from "../../ui/card";
 import { useSY } from "../../../layout/syprovider";
-import { showToast } from "../../toast";
+import { removeToast, showToast } from "../../toast";
 
 interface StudentTableProps {
     title: string;
@@ -19,6 +20,7 @@ interface StudentTableProps {
     setEditedStatus: any;
     handleSave: (grades: any, shssf2: any) => Promise<void>;
     onMonthClick?: (student: Student, month: Month, selectedSubject: string, localShsSf2: any) => void;
+    handleAttendanceChange: (studentId: number, month: Month, days: string[]) => void;
 }
 
 export default function StudentTable({
@@ -33,7 +35,8 @@ export default function StudentTable({
     months,
     shssf2,
     editedStatus,
-    setEditedStatus
+    setEditedStatus,
+    handleAttendanceChange
 }: StudentTableProps) {
     const { currentSY } = useSY();
     const [localShsSf2, setLocalShsSf2] = useState<any>(shssf2 || {});
@@ -59,6 +62,122 @@ export default function StudentTable({
     const [modalOpen, setModalOpen] = useState(false);
     const [modalData, setModalData] = useState<{ studentId: number; field: string; value: string } | null>(null);
     const [tempValue, setTempValue] = useState("");
+
+
+    const gradesFileRef = useRef<HTMLInputElement | null>(null);
+    const attendanceFileRef = useRef<HTMLInputElement | null>(null);
+
+    const handleUploadGrades = async (e?: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e?.target?.files?.[0];
+        if (!file) return;
+
+        const toastId = showToast("Processing uploaded grades...", "loading");
+        try {
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                const new_data = new Uint8Array(evt.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(new_data, { type: "array" });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet);
+
+                let updates = 0;
+
+                for (const row of rows as any[]) {
+                    const studentName = row["student_name"]?.trim()?.toLowerCase();
+                    if (!studentName) continue;
+
+                    const student = data.find(
+                        (s: any) => s.account.name.toLowerCase() === studentName
+                    );
+                    if (!student) continue;
+
+                    const studentId = student.id;
+
+                    const first_quarter = row["first_quarter"] ?? "";
+                    const second_quarter = row["second_quarter"] ?? "";
+                    const third_quarter = row["third_quarter"] ?? "";
+                    const final_quarter = row["final_quarter"] ?? "";
+
+                    handleGradeChange(studentId, "first_quarter", first_quarter);
+                    handleGradeChange(studentId, "second_quarter", second_quarter);
+                    handleGradeChange(studentId, "third_quarter", third_quarter);
+                    handleGradeChange(studentId, "final_quarter", final_quarter);
+
+                    updates++;
+                }
+
+                showToast(`${updates} student grades uploaded successfully.`, "success");
+                e.target.value = "";
+            };
+
+            reader.readAsArrayBuffer(file);
+        } catch (err: any) {
+            showToast("Error uploading grades.", "error");
+            console.error(err);
+        } finally {
+            removeToast(toastId);
+        }
+    };
+
+    const handleUploadAttendance = async (e?: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e?.target?.files?.[0];
+        if (!file) return;
+
+        const toastId = showToast("Processing uploaded attendance...", "loading");
+        try {
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                const new_data = new Uint8Array(evt.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(new_data, { type: "array" });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet);
+
+                let updates = 0;
+
+                for (const row of rows as any[]) {
+                    const studentName = row["name"]?.trim()?.toLowerCase();
+                    if (!studentName) continue;
+
+                    const student = data.find(
+                        (s: any) => s.account.name.toLowerCase() === studentName
+                    );
+                    if (!student) continue;
+
+                    const studentId = student.id;
+
+                    const months: Month[] = [
+                        "january", "february", "march", "april", "may",
+                        "june", "july", "august", "september", "october",
+                        "november", "december"
+                    ];
+
+                    for (const month of months) {
+                        const rawDays = row[month];
+                        if (!rawDays) continue;
+                        const days = String(rawDays)
+                            .split(",")
+                            .map((d) => d.trim())
+                            .filter((d) => d.length > 0);
+
+                        handleAttendanceChange(studentId, month, days);
+                    }
+
+                    updates++;
+                }
+
+                showToast(`${updates} student attendance records uploaded successfully.`, "success");
+                e.target.value = "";
+            };
+
+            reader.readAsArrayBuffer(file);
+        } catch (err: any) {
+            showToast("Error uploading attendance.", "error");
+            console.error(err);
+        } finally {
+            removeToast(toastId);
+        }
+    };
+
 
     const handleGradeChange = (studentId: number, field: string, value: string) => {
         if (selectedSubject === "ALL") return;
@@ -191,15 +310,45 @@ export default function StudentTable({
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="px-3 py-1 text-sm rounded-md border border-gray-300 text-gray-50 placeholder-gray-50 w-72"
                         />
+
+                        {selectedSubject !== "ALL" &&
+                            <>
+                                <button
+                                    onClick={() => gradesFileRef.current?.click()}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-semibold"
+                                >
+                                    Upload Grades
+                                </button>
+                                <input
+                                    ref={gradesFileRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={handleUploadGrades}
+                                    className="hidden"
+                                />
+
+                                <button
+                                    onClick={() => attendanceFileRef.current?.click()}
+                                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-xs font-semibold"
+                                >
+                                    Upload Attendance
+                                </button>
+                                <input
+                                    ref={attendanceFileRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={handleUploadAttendance}
+                                    className="hidden"
+                                />
+                            </>}
                         {selectedSubject !== "ALL" && (
                             <button
                                 onClick={() =>
                                     handleToggleStatus()
                                 }
-                                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                                    (editedStatus[subjectMap[selectedSubject]] || "NO INPUT") === "COMPLETE"
-                                    ? "bg-green-500 text-white hover:bg-green-600"
-                                    : "bg-gray-300 text-gray-700 hover:bg-gray-400"
+                                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${(editedStatus[subjectMap[selectedSubject]] || "NO INPUT") === "COMPLETE"
+                                        ? "bg-green-500 text-white hover:bg-green-600"
+                                        : "bg-gray-300 text-gray-700 hover:bg-gray-400"
                                     }`}
                             >
                                 {editedStatus[subjectMap[selectedSubject]] || "NO INPUT"}
@@ -209,7 +358,7 @@ export default function StudentTable({
                             <div className="flex justify-end">
                                 <button
                                     onClick={localHandleSave}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-md text-sm"
                                 >
                                     Save Changes
                                 </button>
@@ -373,42 +522,42 @@ export default function StudentTable({
                             })}
                         </tbody>
 
-                            <tfoot className="bg-gray-100 border-t sticky bottom-0 z-10 shadow-md">
-                                <tr>
-                                    <td
-                                        colSpan={6 + (selectedSubject !== "ALL" ? 4 : 0)}
-                                        className="px-4 py-2 font-semibold text-right bg-gray-100"
-                                    >
-                                        SHS SF2 STATUS
-                                    </td>
+                        <tfoot className="bg-gray-100 border-t sticky bottom-0 z-10 shadow-md">
+                            <tr>
+                                <td
+                                    colSpan={6 + (selectedSubject !== "ALL" ? 4 : 0)}
+                                    className="px-4 py-2 font-semibold text-right bg-gray-100"
+                                >
+                                    SHS SF2 STATUS
+                                </td>
 
-                                    {months.map((month) => {
-                                        const key = `${month.toLowerCase()}_status`;
-                                        const currentStatus = localShsSf2?.[key] || "NO INPUT";
-                                        const isComplete = currentStatus === "ENCODED";
+                                {months.map((month) => {
+                                    const key = `${month.toLowerCase()}_status`;
+                                    const currentStatus = localShsSf2?.[key] || "NO INPUT";
+                                    const isComplete = currentStatus === "ENCODED";
 
-                                        return (
-                                            <td key={month} className="px-4 py-2 text-center bg-gray-100">
-                                                <button
-                                                    onClick={() => {
-                                                        setLocalShsSf2((prev: any) => ({
-                                                            ...prev,
-                                                            [key]: isComplete ? "NO INPUT" : "ENCODED",
-                                                        }));
-                                                        setIsDirty(true);
-                                                    }}
-                                                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${isComplete
-                                                        ? "bg-green-500 text-white hover:bg-green-600"
-                                                        : "bg-gray-300 text-gray-700 hover:bg-gray-400"
-                                                        }`}
-                                                >
-                                                    {currentStatus}
-                                                </button>
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            </tfoot>
+                                    return (
+                                        <td key={month} className="px-4 py-2 text-center bg-gray-100">
+                                            <button
+                                                onClick={() => {
+                                                    setLocalShsSf2((prev: any) => ({
+                                                        ...prev,
+                                                        [key]: isComplete ? "NO INPUT" : "ENCODED",
+                                                    }));
+                                                    setIsDirty(true);
+                                                }}
+                                                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${isComplete
+                                                    ? "bg-green-500 text-white hover:bg-green-600"
+                                                    : "bg-gray-300 text-gray-700 hover:bg-gray-400"
+                                                    }`}
+                                            >
+                                                {currentStatus}
+                                            </button>
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
 

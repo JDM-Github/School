@@ -86,8 +86,8 @@ class Seeder {
 
         await queryInterface.bulkInsert("Subjects", subjectRecords);
         await queryInterface.bulkInsert("SchoolYears", [
-            { school_year: "2024-2025", createdAt: new Date(), updatedAt: new Date() },
-            { school_year: "2025-2026", createdAt: new Date(), updatedAt: new Date() },
+            { school_year: "2024-2025", isGrade11Created: true, isGrade12Created: false, isPublished: true, createdAt: new Date(), updatedAt: new Date() },
+            { school_year: "2025-2026", isGrade11Created: true, isGrade12Created: true, isPublished: true, createdAt: new Date(), updatedAt: new Date() },
         ])
         await queryInterface.bulkInsert("AppliedSubjects", [
             { subjects_ids: [1, 2], createdAt: new Date(), updatedAt: new Date() },
@@ -249,7 +249,6 @@ class Seeder {
                 });
             })
         );
-        console.log(`✅ Successfully created ${count} student accounts.`);
     }
 
     static async seedStudents() {

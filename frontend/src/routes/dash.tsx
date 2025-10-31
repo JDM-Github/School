@@ -22,11 +22,15 @@ import { StudentAnalytics } from "../lib/type";
 import { useSY } from "../layout/syprovider";
 import RequestHandler from "../lib/utilities/RequestHandler";
 import { Card } from "../components/ui/card";
+import { removeToast, showToast } from "../components/toast";
+import VisionMissionCard from "../components/dashboard/visionMission";
 
 export default function Dashboard() {
     const { currentSY } = useSY();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [allVisionMissions, setAllVisionMissions] = useState<any>([]);
     const [analyticsData, setAnalyticsData] = useState<StudentAnalytics[]>([]);
 
     const fetchAnalytics = async () => {
@@ -42,10 +46,42 @@ export default function Dashboard() {
             else setError("No students found.");
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Error fetching students");
-        } finally {
-            setLoading(false);
         }
+
+        try {
+            const res = await RequestHandler.fetchData(
+                "GET",
+                `school-year/get-vision-mission`
+            );
+            if (res.success) setAllVisionMissions(res.visionMission);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Error fetching vision and mission");
+        }
+        setLoading(false);
     };
+
+    const updateVisionMission = async (school_year:string, vision: string, mission: string) => {
+        const toastId = showToast("Updating vision and mission...", "loading");
+        try {
+            const res = await RequestHandler.fetchData(
+                "POST",
+                `school-year/update-vision-mission`,
+                { school_year, vision, mission }
+            );
+
+            removeToast(toastId);
+            if (res.success) {
+                setAllVisionMissions(res.visionMission);
+                showToast("Successfully updated vision and mission", "success");
+            } else {
+                showToast("Error updating vision and mission.", "error");
+            }
+        } catch (err: unknown) {
+            removeToast(toastId);
+            setError(err instanceof Error ? err.message : "Error update vision or mission");
+            showToast("Error updating vision and mission.", "error");
+        }
+    }
 
     useEffect(() => {
         fetchAnalytics();
@@ -150,7 +186,6 @@ export default function Dashboard() {
         };
     });
 
-    // Transform data for stacked bar chart (male/female)
     const genderChartData = studentDemographics.map((d) => ({
         grade: d.grade,
         Male: d.male,
@@ -357,28 +392,7 @@ export default function Dashboard() {
                     )}
                 </Card>
 
-                <Card className="p-6 bg-white shadow-lg hover:shadow-xl transition rounded-lg border border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 border-gray-300">
-                        Vision & Mission
-                    </h2>
-
-                    <div className="text-gray-700 space-y-2">
-                        <div className="bg-blue-50 p-4 rounded-md">
-                            <h3 className="text-gray-800 font-medium mb-1">Vision</h3>
-                            <p className="text-sm leading-relaxed">
-                                To develop students into responsible, competent, and morally upright citizens equipped with 21st-century skills to thrive in an ever-changing global society.
-                            </p>
-                        </div>
-
-                        <div className="bg-green-50 p-4 rounded-md ">
-                            <h3 className="text-gray-800 font-medium mb-1">Mission</h3>
-                            <p className="text-sm leading-relaxed">
-                                Provide quality education that nurtures academic excellence and personal growth. Encourage critical thinking, creativity, and problem-solving skills among students. Foster values and discipline to produce responsible and ethical individuals. Promote inclusivity and collaboration within the school community. Utilize innovative teaching methods and technology to enhance learning outcomes.
-                            </p>
-                        </div>
-                    </div>
-                </Card>
-
+                <VisionMissionCard allVisionMissions={allVisionMissions} currentSY={currentSY} updateVisionMission={updateVisionMission} />
                 <Card className="p-6 bg-white shadow-lg hover:shadow-xl transition rounded-lg">
                     <h2 className="text-xl font-semibold text-gray-800">
                         Top 5 Students

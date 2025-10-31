@@ -1,7 +1,9 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, useEffect } from "react";
 import { useSY } from "../layout/syprovider";
+import RequestHandler from "../lib/utilities/RequestHandler";
+import { useAuth } from "../context/auth";
 
 interface ChangeSYModalProps {
     open: boolean;
@@ -9,16 +11,48 @@ interface ChangeSYModalProps {
 }
 
 export default function ChangeSYModal({ open, onOpenChange }: ChangeSYModalProps) {
+    const { role } = useAuth();
     const { currentSY, setSY } = useSY();
-    const currentYear = new Date().getFullYear() - 1;
-
-    const syOptions = Array.from({ length: 3 }, (_, i) => {
-        const start = currentYear + i;
-        const end = start + 1;
-        return `${start}-${end}`;
-    });
-
     const [newSY, setNewSY] = useState<string>(currentSY);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [syOptions, setSyOptions] = useState([currentSY]);
+
+    const fetchSchoolYear = async () => {
+        try {
+            const response = await RequestHandler.fetchData("GET", `school-year/get-all`);
+
+            if (response.success) {
+                let years = response.schoolyears;
+                let schoolYearMap = response.schoolyearMap;
+
+                if (role === "admin" && years.length > 0) {
+                    const lastYear = years[years.length - 1];
+                    if (schoolYearMap[lastYear].isPublished) {
+                        const [currentStart, currentEnd] = lastYear.split("-").map(Number);
+                        const prevSchoolYear = `${currentStart + 1}-${currentEnd + 1}`;
+                        years = [...years, prevSchoolYear];
+                        setSY(lastYear);
+                    } else {
+                        const [currentStart, currentEnd] = lastYear.split("-").map(Number);
+                        const prevCurrentYear = `${currentStart - 1}-${currentEnd - 1}`;
+                        setSY(prevCurrentYear);
+                    }
+                }
+                setSyOptions(years);
+            } else {
+                setError(response.message || "Failed to load SHS SF9 data.");
+            }
+        } catch (err: any) {
+            setError(err.message || "Something went wrong while fetching SHS SF9 data.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSchoolYear();
+    }, []);
 
     const handleSave = () => {
         if (!newSY.trim()) return;

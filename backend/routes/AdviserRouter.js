@@ -4,7 +4,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { Adviser, AdviserAccount, Section, SHSSF9, SHSSF2, SubjectStatus, Subject, Student, StudentAccount, StudentGrade, Attendance, SubjectAttendance } = require("../models/Models");
+const { Adviser, AdviserAccount, Section, SHSSF9, SHSSF2, SubjectStatus, Subject, Student, StudentAccount, StudentGrade, Attendance, SubjectAttendance, SchoolYear } = require("../models/Models");
 const { Op } = require("sequelize");
 
 class AdviserRouter {
@@ -622,6 +622,19 @@ class AdviserRouter {
 					}
 				}
 
+				let newSY = currentSY;
+				const schoolYears = await SchoolYear.findAll();
+				if (schoolYears.length) {
+					const lastYear = schoolYears[schoolYears.length - 1];
+					if (lastYear.isPublished) {
+						const [currentStart, currentEnd] = currentSY.split("-").map(Number);
+						const nextSchoolYear = `${currentStart + 1}-${currentEnd + 1}`;
+						newSY = nextSchoolYear;
+					} else {
+						newSY = lastYear.school_year;
+					}
+				}
+
 				const password = await bcrypt.hash(`123`, 10);
 				const account = await AdviserAccount.create({
 					firstName,
@@ -659,9 +672,8 @@ class AdviserRouter {
 					shs_sf9_id: null,
 					shs_sf2_id: shssf2.id,
 					subject_questions_ids: [],
-					school_year: currentSY,
+					school_year: newSY,
 				});
-
 				res.json({ success: true, message: "Adviser and SHSSF2 record created successfully." });
 			} catch (err) {
 				console.error(err);
@@ -857,6 +869,131 @@ class AdviserRouter {
 				res.status(500).json({ success: false, message: "Internal server error." });
 			}
 		});
+
+
+		this.router.post("/update-adviser-password", async (req, res) => {
+			try {
+				const { adviserId, oldPassword, newPassword } = req.body;
+
+				if (!adviserId || !oldPassword || !newPassword) {
+					return res.status(400).json({
+						success: false,
+						message: "Missing required fields.",
+					});
+				}
+
+				const adviser = await AdviserAccount.findByPk(adviserId);
+				if (!adviser) {
+					return res.status(404).json({
+						success: false,
+						message: "Adviser not found.",
+					});
+				}
+
+				const isMatch = await bcrypt.compare(oldPassword, adviser.password);
+				if (!isMatch) {
+					return res.status(401).json({
+						success: false,
+						message: "Old password is incorrect.",
+					});
+				}
+
+				const hashedPassword = await bcrypt.hash(newPassword, 10);
+				await adviser.update({ password: hashedPassword });
+
+				return res.json({
+					success: true,
+					message: "Password updated successfully.",
+				});
+			} catch (err) {
+				console.error("❌ Error in /update-adviser-password:", err);
+				return res.status(500).json({
+					success: false,
+					message: "Internal server error.",
+				});
+			}
+		});
+
+
+		this.router.post("/update-adviser-account", async (req, res) => {
+			try {
+				const {
+					adviserAccountId,
+					firstName,
+					middleName,
+					lastName,
+					suffix,
+					email,
+					age,
+					sex,
+				} = req.body;
+
+				if (!adviserAccountId) {
+					return res.status(400).json({
+						success: false,
+						message: "Missing adviserAccountId.",
+					});
+				}
+
+				const adviserAccount = await AdviserAccount.findByPk(adviserAccountId);
+				if (!adviserAccount) {
+					return res.status(404).json({
+						success: false,
+						message: "Adviser account not found.",
+					});
+				}
+
+				await adviserAccount.update({
+					firstName,
+					middleName,
+					lastName,
+					suffix,
+					email,
+					age,
+					sex,
+					name: `${firstName} ${middleName} ${lastName} ${suffix}`.trim(),
+				});
+
+				return res.json({
+					success: true,
+					message: "Adviser account updated successfully.",
+				});
+			} catch (err) {
+				console.error("❌ Error in /update-adviser-account:", err);
+				return res.status(500).json({
+					success: false,
+					message: "Internal server error.",
+				});
+			}
+		});
+
+		this.router.post("/update-adviser", async (req, res) => {
+			try {
+				const { adviserId, ...fields } = req.body;
+				const adviser = await Adviser.findOne({ where: { adviser_id: adviserId } });
+				if (!adviser) return res.status(404).json({ success: false, message: "Adviser not found." });
+
+				await AdviserAccount.update(fields, { where: { id: adviserId } });
+				return res.json({ success: true, message: "Adviser updated successfully." });
+			} catch (err) {
+				console.error("Error updating adviser:", err);
+				res.status(500).json({ success: false, message: "Internal server error." });
+			}
+		});
+
+		this.router.post("/update-adviser-password-admin", async (req, res) => {
+			try {
+				const { adviserId, newPassword } = req.body;
+				if (!newPassword) return res.status(400).json({ success: false, message: "New password required." });
+
+				await AdviserAccount.update({ password: newPassword }, { where: { id: adviserId } });
+				res.json({ success: true, message: "Password updated successfully." });
+			} catch (err) {
+				console.error("Error updating adviser password:", err);
+				res.status(500).json({ success: false, message: "Internal server error." });
+			}
+		});
+
 
 	}
 }

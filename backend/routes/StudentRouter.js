@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require('bcryptjs');
 const { Op } = require("sequelize");
-const { StudentAccount, Student, Section, Attendance, Subject, SubjectAttendance, Adviser, AdviserAccount, StudentGrade } = require("../models/Models");
+const { StudentAccount, Student, Section, Attendance, Subject, SubjectAttendance, Adviser, AdviserAccount, StudentGrade, SchoolYear } = require("../models/Models");
 
 class StudentRouter {
 	constructor() {
@@ -345,7 +345,24 @@ class StudentRouter {
 			}
 		});
 
-
+		this.router.get("/kpi2", async (req, res) => {
+			try {
+				const students = await Student.findAll({
+					where: { school_year: "2026-2027" },
+				});
+				return res.json({
+					success: true,
+					message: "KPI data fetched successfully",
+					students
+				});
+			} catch (err) {
+				console.error("❌ Error fetching KPI data:", err);
+				return res.status(500).json({
+					success: false,
+					message: "Internal server error",
+				});
+			}
+		});
 
 		this.router.get("/kpi", async (req, res) => {
 			try {
@@ -366,7 +383,6 @@ class StudentRouter {
 				});
 
 				const projectedPopulation = 200; 
-
 				const dropouts = await Student.count({
 					where: { school_year: currentSchoolYear, isStartedSY: true },
 					include: [
@@ -458,14 +474,34 @@ class StudentRouter {
 					currentSY,
 				} = req.body;
 
-				const [currentStart, currentEnd] = currentSY.split("-").map(Number);
-				const nextSchoolYear = `${currentStart + 1}-${currentEnd + 1}`;
+				let newSY = currentSY;
+				const schoolYears = await SchoolYear.findAll();
+				if (schoolYears.length) {
+					const lastYear = schoolYears[schoolYears.length - 1];
+					if (lastYear.isPublished) {
+						const [currentStart, currentEnd] = currentSY.split("-").map(Number);
+						const nextSchoolYear = `${currentStart + 1}-${currentEnd + 1}`;
+						newSY = nextSchoolYear;
+					} else {
+						if (gradeLevel === "Grade 11" && lastYear.isGrade11Created) {
+							return res.json({
+								success: false,
+								message: "Cannot add new enrollee, Grade 11 school year is already created.",
+							});
+						}
+						if (gradeLevel === "Grade 12" && lastYear.isGrade12Created) {
+							return res.json({
+								success: false,
+								message: "Cannot add new enrollee, Grade 12 school year is already created.",
+							});
+						}
+						newSY = lastYear.school_year;
+					}
+				}
 
 				const nameParts = [firstName, middleName, lastName, suffix].filter(Boolean);
-				const passParts = [lastName, firstName, `${age}`, `${nextSchoolYear}`].filter(Boolean);
 				const name = nameParts.join(" ");
-
-				const password = await bcrypt.hash(passParts.join(""), 10);
+				const password = await bcrypt.hash("123", 10);
 				const account = await StudentAccount.create({
 					name,
 					firstName,
@@ -481,7 +517,7 @@ class StudentRouter {
 					isRepeater: false,
 					retained: true,
 					gradeLevel,
-					currentSY: nextSchoolYear,
+					currentSY: newSY,
 					isEnrollThisSY: true,
 					isPassedThisSY: false,
 					isNew: true,
@@ -497,7 +533,7 @@ class StudentRouter {
 					school_year: account.currentSY,
 					isNew: true,
 					isStartedSY: false,
-					startedSY: currentSY,
+					startedSY: newSY,
 				});
 
 				return res.json({

@@ -5,7 +5,8 @@ import {
     RadarChart,
     PolarGrid,
     PolarAngleAxis,
-    Radar
+    Radar,
+    PolarRadiusAxis
 } from "recharts";
 import { BookOpen, Calendar, PieChart as PieIcon } from "lucide-react";
 import RequestHandler from "../../lib/utilities/RequestHandler";
@@ -293,6 +294,7 @@ export default function TeacherDashboard() {
                                     })}
                                 >
                                     <PolarGrid />
+                                    <PolarRadiusAxis domain={[1, 3]} /> 
                                     <PolarAngleAxis dataKey="month" />
                                     <Radar
                                         name="Status"

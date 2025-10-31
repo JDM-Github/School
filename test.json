@@ -1,0 +1,16 @@
+{
+    "currentSchoolyear": "2026-2027",
+    "grade": "Grade 12",
+    "sections": [
+        {
+            "id": 1761803265884,
+            "name": "SEC1",
+            "grade": "Grade 12",
+            "adviserId": 1,
+            "studentIds": [
+                1
+            ],
+            "subjects": []
+        }
+    ]
+}

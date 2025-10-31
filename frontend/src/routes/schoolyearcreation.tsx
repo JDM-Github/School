@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Trash } from "lucide-react";
+import { CheckCircle2, Plus, Trash } from "lucide-react";
 import RequestHandler from "../lib/utilities/RequestHandler";
+import { useSY } from "../layout/syprovider";
+import { confirmToast, removeToast, showToast } from "../components/toast";
 
 type Sex = "Male" | "Female" | "Other";
 
@@ -55,20 +57,68 @@ type Subjects = {
     name: string;
 }
 
+type SchoolYearMap = {
+    [schoolYear: string]: {
+        isGrade11Created: boolean;
+        isGrade12Created: boolean;
+        isPublished: boolean;
+    };
+};
+
+
 type SchoolYear = string[];
 export default function SchoolYearBuilder() {
     // SY
-    const currentYear = new Date().getFullYear() + 1;
-    const nextYear = currentYear + 1;
-    const schoolYear = `${currentYear}-${nextYear}`;
-    const [currentSchoolyear, setCurrentSchoolyear] = useState<string>(schoolYear);
+    const { currentSY } = useSY();
+    const [isYearsFetch, setIsYearsFetch] = useState(false);
+    const [currentSchoolyear, setCurrentSchoolyear] = useState<string>(currentSY);
+    const [currentLatestSY, setCurrentLatestSY] = useState<string>(currentSY);
     const month = new Date().getMonth();
-    const canCreateSY = month >= 2 && month <= 4; 
 
+    const canCreateSY = month >= 1 && month <= 12;
+    const [schoolYearMap, setSchoolYearMap] = useState<SchoolYearMap>({});
+    const [allSchoolYears, setAllSchoolYears] = useState<SchoolYear>([currentSY]);
 
-    const [allSchoolYears, setAllSchoolYears] = useState<SchoolYear>([schoolYear]);
-    const [isDisable, setIsDisable] = useState(false);
+    const fetchSchoolYear = async () => {
+        setLoading(true);
+        setError(null);
 
+        const response = await RequestHandler.fetchData(
+            "GET",
+            `school-year/get-all`
+        );
+        if (response.success) {
+            let years = response.schoolyears;
+            let schoolYearMap = response.schoolyearMap;
+
+            if (years.length > 0) {
+                const lastYear = years[years.length - 1];
+                if (schoolYearMap[lastYear].isPublished) {
+                    const [currentStart, currentEnd] = lastYear.split("-").map(Number);
+                    const nextSchoolYear = `${currentStart + 1}-${currentEnd + 1}`;
+                    schoolYearMap[nextSchoolYear] = {
+                        isGrade11Created: false,
+                        isGrade12Created: false,
+                        isPublished: false
+                    };
+                    years = [...years, nextSchoolYear];
+                    setCurrentLatestSY(nextSchoolYear);
+                } else {
+                    setCurrentLatestSY(lastYear);
+                }
+            }
+
+            setIsDisable(schoolYearMap[currentSchoolyear].isGrade11Created || currentLatestSY !== currentSchoolyear);
+            setSchoolYearMap(schoolYearMap);
+            setAllSchoolYears(years);
+        } else {
+            setError(response.message || "Failed to load data");
+        }
+        setIsYearsFetch(true);
+        setLoading(false);
+    }
+
+    const [isDisable, setIsDisable] = useState(true);
     const [gradeForSY, setGradeForSY] = useState<"Grade 11" | "Grade 12">("Grade 11");
     const [searchTerm, setSearchTerm] = useState("");
     const [sectionSearch, setSectionSearch] = useState("");
@@ -130,84 +180,211 @@ export default function SchoolYearBuilder() {
             setAdvisers(response.data.advisers || []);
             setSubjects(response.data.subjects || []);
             setGroups(response.data.groups || []);
-
             assignSectionColors(fetchedSections);
         } else {
             setError(response.message || "Failed to load data");
         }
-        setIsDisable(schoolYear !== currentSchoolyear);
         setLoading(false);
     };
 
-    const fetchSchoolYear = async () => {
-        setLoading(true);
-        setError(null);
-
-        const response = await RequestHandler.fetchData(
-            "GET",
-            `school-year/get-all`
-        );
-        if (response.success) {
-            setAllSchoolYears([...response.schoolyears, schoolYear]);
-        } else {
-            setError(response.message || "Failed to load data");
+    const handleCreateSY = async () => {
+        const missingAdvisers = sections.filter(sec => !sec.adviserId);
+        if (missingAdvisers.length > 0) {
+            showToast("Each section must have an assigned adviser.", "error");
+            return;
         }
-        setLoading(false);
-    }
+
+        const allAssignedStudentIds = sections.flatMap(sec => sec.studentIds);
+        const unassignedStudents = students.filter(s => !allAssignedStudentIds.includes(s.id));
+
+        if (unassignedStudents.length > 0) {
+            showToast("All students must be assigned to a section before creating the school year.", "error");
+            return;
+        }
+
+        confirmToast(
+            `Are you sure you want to create ${gradeForSY} School Year (${currentSchoolyear})?`,
+            () => {
+                confirmToast(
+                    `⚠️ This action cannot be undone. Proceed with creating ${gradeForSY} School Year?`,
+                    async () => {
+                        const payload = {
+                            currentSchoolyear,
+                            grade: gradeForSY,
+                            sections,
+                        };
+
+                        console.log("CREATE SY PAYLOAD:", payload);
+                        setLoading(true);
+                        setError(null);
+
+                        const toastId = showToast(`Creating ${gradeForSY} School Year...`, "loading");
+                        try {
+                            const response = await RequestHandler.fetchData(
+                                "POST",
+                                `student-account/create-sy-level`,
+                                payload
+                            );
+                            removeToast(toastId);
+                            if (response.success) {
+                                fetchSchoolYear();
+                                fetchAllData();
+                                let anotherBool = true;
+                                setIsDisable(anotherBool || currentLatestSY !== currentSchoolyear);
+                                showToast(`Created School Year for ${gradeForSY}.`, "success");
+                            } else {
+                                showToast(`Failed to create School Year for ${gradeForSY}.`, "error");
+                                setError(response.message || "Failed to create school year");
+                            }
+                        } catch (e: any) {
+                            removeToast(toastId);
+                            showToast(`Failed to create School Year for ${gradeForSY}.`, "error");
+                            setError(e.message || "Failed to create school year");
+                        }
+                        setLoading(false);
+                    },
+                    () => showToast("Creation canceled.", "info")
+                );
+            },
+            () => showToast("Creation canceled.", "info")
+        );
+    };
+
+    const handlePublishSY = async () => {
+        confirmToast(
+            `Are you sure you want publish the current school year?`,
+            async () => {
+                setLoading(true);
+                setError(null);
+
+                const toastId = showToast(`Publishing ${gradeForSY} School Year...`, "loading");
+                try {
+                    const response = await RequestHandler.fetchData(
+                        "POST",
+                        `student-account/publish-sy-level`,
+                        { currentSchoolyear }
+                    );
+                    removeToast(toastId);
+                    if (response.success) {
+                        fetchSchoolYear();
+                        fetchAllData();
+                        let anotherBool = true;
+                        setIsDisable(anotherBool || currentLatestSY !== currentSchoolyear);
+                        showToast(`Published School Year for ${gradeForSY}.`, "success");
+                    } else {
+                        showToast(`Failed to publish School Year for ${gradeForSY}.`, "error");
+                        setError(response.message || "Failed to create school year");
+                    }
+                } catch (e: any) {
+                    removeToast(toastId);
+                    showToast(`Failed to publish School Year for ${gradeForSY}.`, "error");
+                    setError(e.message || "Failed to create school year");
+                }
+                setLoading(false);
+            },
+            () => showToast("Creation canceled.", "info")
+        );
+    };
+
 
     useEffect(() => {
         fetchAllData();
-        fetchSchoolYear();
+        if (!isYearsFetch) {
+            fetchSchoolYear();
+        } else {
+            let anotherBool = schoolYearMap[currentSchoolyear].isPublished;
+            if (gradeForSY === "Grade 11") {
+                anotherBool = schoolYearMap[currentSchoolyear].isGrade11Created;
+            } else {
+                anotherBool = schoolYearMap[currentSchoolyear].isGrade12Created;
+            }
+            setIsDisable(anotherBool || currentLatestSY !== currentSchoolyear);
+        }
     }, [gradeForSY, currentSchoolyear]);
 
     const handleStudentClick = (studentId: number) => {
-        if (!selectedSectionId) return alert("Please select a section on the right first.");
-        setSections(prev => prev.map(sec => {
-            if (sec.id === selectedSectionId) {
-                const already = sec.studentIds.includes(studentId);
-                return { ...sec, studentIds: already ? sec.studentIds.filter(id => id !== studentId) : [...sec.studentIds, studentId] };
-            }
-            return { ...sec, studentIds: sec.studentIds.filter(id => id !== studentId) };
-        }));
+        if (!selectedSectionId)
+            return alert("Please select a section on the right first.");
+
+        const alreadyAssigned = sections.some(sec => sec.studentIds.includes(studentId));
+        if (alreadyAssigned) {
+            showToast("Student is already assigned to a section.", "info");
+            return;
+        }
+
+        setSections(prev =>
+            prev.map(sec => {
+                if (sec.id === selectedSectionId) {
+                    const already = sec.studentIds.includes(studentId);
+                    return {
+                        ...sec,
+                        studentIds: already
+                            ? sec.studentIds.filter(id => id !== studentId)
+                            : [...sec.studentIds, studentId],
+                    };
+                }
+                return { ...sec, studentIds: sec.studentIds.filter(id => id !== studentId) };
+            })
+        );
     };
 
+
     const handleAdviserClick = (adviserId: number) => {
-        if (!selectedSectionId) return alert("Please select a section on the right first.");
-        setSections(prev => prev.map(sec => sec.id === selectedSectionId ? { ...sec, adviserId: sec.adviserId === adviserId ? null : adviserId } : sec));
+        if (!selectedSectionId)
+            return alert("Please select a section on the right first.");
+
+        const alreadyAssigned = sections.some(sec => sec.adviserId === adviserId);
+        if (alreadyAssigned) {
+            showToast("Adviser is already assigned to a section.", "info");
+            return;
+        }
+
+        setSections(prev =>
+            prev.map(sec =>
+                sec.id === selectedSectionId
+                    ? { ...sec, adviserId: sec.adviserId === adviserId ? null : adviserId }
+                    : sec
+            )
+        );
     };
 
     const handleAddSection = (grade?: "Grade 11" | "Grade 12") => {
-        const newSec: SectionType = { id: Date.now(), name: `New Section ${sections.length + 1}`, grade: grade || gradeForSY, adviserId: null, studentIds: [], subjects: [] };
+        const newSec: SectionType = { id: Date.now() + Math.floor(Math.random() * 100000), name: `New Section ${sections.length + 1}`, grade: grade || gradeForSY, adviserId: null, studentIds: [], subjects: [] };
         setSections(prev => [...prev, newSec]);
         setSelectedSectionId(newSec.id);
+    };
+    const handleDeleteSection = (sectionId: number) => {
+        const section = sections.find(sec => sec.id === sectionId);
+        if (!section) return;
+
+        confirmToast(
+            `Are you sure you want to delete section "${section.name}"?`,
+            () => {
+                setSections(prev => prev.filter(sec => sec.id !== sectionId));
+                if (selectedSectionId === sectionId) setSelectedSectionId(null);
+                showToast("Section deleted successfully.", "info");
+            },
+            () => {
+                showToast("Delete canceled.", "info");
+            }
+        );
     };
 
     const removeStudentFromSection = (sectionId: number, studentId: number) => {
         setSections(prev => prev.map(sec => sec.id === sectionId ? { ...sec, studentIds: sec.studentIds.filter(id => id !== studentId) } : sec));
     };
 
-    const handleCreateSY = () => {
-        const payload = {
-            schoolYear,
-            grade: gradeForSY,
-            sections,
-        };
-        console.log("CREATE SY PAYLOAD:", payload);
-        alert("School Year created (check console). Payload has been logged.");
-    };
-
     const [sectionColors, setSectionColors] = useState<{ [section: string]: string }>({});
-
     const colorPalette = [
-        "#E0F2FE", // blue
-        "#DCFCE7", // green
-        "#FEF9C3", // yellow
-        "#FCE7F3", // pink
-        "#FAE8FF", // purple
-        "#FFE4E6", // red
-        "#F5F5F5", // gray
-        "#EDE9FE", // indigo
-        "#FFF7ED", // orange
+        "#E0F2FE",
+        "#DCFCE7",
+        "#FEF9C3",
+        "#FCE7F3",
+        "#FAE8FF",
+        "#FFE4E6",
+        "#F5F5F5",
+        "#EDE9FE",
+        "#FFF7ED",
     ];
 
     const assignSectionColors = (sectionsList: any[]) => {
@@ -335,7 +512,7 @@ export default function SchoolYearBuilder() {
                         >
                             <div className="bg-gray-400 text-white text-lg font-semibold px-4 py-2 flex justify-between items-center">
                                 <span>
-                                    {pickMode === "students" ? "ALL STUDENT" : "ALL ADVISER" }
+                                    {pickMode === "students" ? "ALL STUDENT" : "ALL ADVISER"}
                                 </span>
                             </div>
 
@@ -459,7 +636,7 @@ export default function SchoolYearBuilder() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <h2 className="text-xl font-bold">Build School Year</h2>
-                        
+
                         <select
                             value={currentSchoolyear}
                             onChange={(e) => setCurrentSchoolyear(e.target.value)}
@@ -476,29 +653,48 @@ export default function SchoolYearBuilder() {
                             <option value="Grade 12">Grade 12</option>
                         </select>
                     </div>
-                    
+
 
                     <div className="flex items-center gap-3">
-                        {!isDisable &&
+                        {!isDisable && (
                             <>
-                                <button onClick={() => handleAddSection(gradeForSY)} className="px-3 py-1 bg-indigo-600 text-white rounded flex items-center gap-2"><Plus className="w-4 h-4" /> Add Section</button>
+                                <button
+                                    onClick={() => handleAddSection(gradeForSY)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-indigo-700 transition-all duration-150"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Add Section
+                                </button>
+
                                 <button
                                     onClick={handleCreateSY}
                                     disabled={!canCreateSY}
-                                    className={`px-3 py-1 rounded text-white transition
-                                    ${canCreateSY
-                                            ? "bg-green-700 hover:bg-green-800"
-                                            : "bg-gray-400 cursor-not-allowed"}`}
-                                        title={
-                                        canCreateSY
-                                            ? `Create new School Year (${nextYear}-${nextYear + 1})`
-                                            : "You can only create a new School Year between March and May."
-                                    }
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-all duration-150 ${canCreateSY
+                                        ? "bg-green-600 hover:bg-green-700 text-white"
+                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                        }`}
                                 >
-                                    {canCreateSY ? "Create SY" : "Unavailable"}
+                                    {canCreateSY
+                                        ? schoolYearMap[currentSchoolyear]?.[
+                                            gradeForSY === "Grade 11" ? "isGrade11Created" : "isGrade12Created"
+                                        ]
+                                            ? `Update ${gradeForSY} SY`
+                                            : `Create ${gradeForSY} SY`
+                                        : "Unavailable"}
                                 </button>
                             </>
-                        }
+                        )}
+
+                        {schoolYearMap && schoolYearMap[currentSchoolyear] && schoolYearMap[currentSchoolyear].isGrade11Created &&
+                            schoolYearMap[currentSchoolyear].isGrade12Created && !schoolYearMap[currentSchoolyear].isPublished && (
+                                <button
+                                    onClick={handlePublishSY}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-emerald-700 transition-all duration-150"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Publish School Year
+                                </button>
+                            )}
                         <input
                             type="text"
                             placeholder={`Search sections...`}
@@ -513,7 +709,7 @@ export default function SchoolYearBuilder() {
                 </div>
                 {!isDisable && !canCreateSY && (
                     <p className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded-md">
-                        ⚠️ Currently, you can’t create a new School Year. This action is only
+                        ⚠️ Currently, you can't create a new School Year. This action is only
                         available between <span className="font-medium">March and May</span>,
                         when the current school year is ending.
                     </p>
@@ -549,12 +745,12 @@ export default function SchoolYearBuilder() {
                                 key={sec.id}
                                 className={`p-4 shadow-xl rounded-lg border cursor-auto transition-all ${selectedSectionId === sec.id
                                     ? "border-blue-500 border-3 bg-white"
-                                    : `border-gray-200 bg-white ${!isDisable ? "hover:border-blue-500 cursor-pointer" : ""}`
+                                    : `border-gray-200 border-3 bg-white ${!isDisable ? "hover:border-red-300 cursor-pointer" : ""}`
                                     }`}
                                 onClick={() => !isDisable && setSelectedSectionId(sec.id)}
                             >
                                 <div className="flex justify-between items-start">
-                                    <div>
+                                    <div className="flex flex-col">
                                         <div className="font-semibold">
                                             {isEditing ? (
                                                 <input
@@ -566,10 +762,56 @@ export default function SchoolYearBuilder() {
                                                     className="border px-1 py-0.5 rounded text-sm w-full"
                                                 />
                                             ) : (
-                                                <span onDoubleClick={(e: React.MouseEvent) => !isDisable && handleNameDoubleClick(e)}>{sec.name}</span>
+                                                <div className="flex flex-col items-start">
+                                                    <span
+                                                        onDoubleClick={(e: React.MouseEvent) => !isDisable && handleNameDoubleClick(e)}
+                                                        className={!isDisable ? "cursor-pointer" : ""}
+                                                    >
+                                                        {sec.name}
+                                                    </span>
+
+                                                    {!isDisable && (
+                                                        <div className="flex items-center text-xs text-gray-500 mt-1">
+                                                            <svg
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                viewBox="0 0 20 20"
+                                                                fill="currentColor"
+                                                                className="w-3.5 h-3.5 mr-1"
+                                                            >
+                                                                <path d="M4 13.5V16h2.5l7.35-7.35-2.5-2.5L4 13.5zm9.85-8.35a.5.5 0 0 1 .7 0l1.3 1.3a.5.5 0 0 1 0 .7l-1.15 1.15-2-2 1.15-1.15z" />
+                                                            </svg>
+                                                            <span>Double-click to edit section name</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
+                                        {!isDisable && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteSection(sec.id);
+                                                }}
+                                                className="mt-2 flex items-center gap-1 text-xl text-red-600 hover:text-red-800"
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
+                                                    className="w-4 h-4"
+                                                >
+                                                    <path
+                                                        fillRule="evenodd"
+                                                        d="M6 8a.75.75 0 0 1 .75.75v7.5a.75.75 0 0 1-1.5 0v-7.5A.75.75 0 0 1 6 8zm4 0a.75.75 0 0 1 .75.75v7.5a.75.75 0 0 1-1.5 0v-7.5A.75.75 0 0 1 10 8zm4 .75v7.5a.75.75 0 0 1-1.5 0v-7.5a.75.75 0 0 1 1.5 0zM3.5 4.25A.75.75 0 0 1 4.25 3.5h11.5a.75.75 0 0 1 0 1.5H15v.75a2.25 2.25 0 0 1-2.25 2.25H7.25A2.25 2.25 0 0 1 5 5.75V5H4.25a.75.75 0 0 1-.75-.75zm3.25.75V5.75a.75.75 0 0 0 .75.75h5.5a.75.75 0 0 0 .75-.75V5H6.75z"
+                                                        clipRule="evenodd"
+                                                    />
+                                                </svg>
+                                                <span>Delete Section</span>
+                                            </button>
+                                        )}
                                         <div className="text-xs text-gray-500">{sec.grade}</div>
+
+
                                     </div>
                                     <div className="text-right">
                                         <div className="text-xs">Adviser:</div>
@@ -709,6 +951,7 @@ export default function SchoolYearBuilder() {
                                             </table>
                                         </div>
                                     )}
+
                                 </div>
                             </div>
                         );

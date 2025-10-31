@@ -19,6 +19,7 @@ const StudentAccount = sequelize.define("StudentAccount", {
     isRepeater: { type: DataTypes.BOOLEAN, defaultValue: false },
     retained: { type: DataTypes.BOOLEAN, defaultValue: true },
 
+    
     // THIS IS USED FOR TRACKING CURRENT
     isPassedThisSY: { type: DataTypes.BOOLEAN, defaultValue: false },
     isEnrollThisSY: { type: DataTypes.BOOLEAN, defaultValue: true },

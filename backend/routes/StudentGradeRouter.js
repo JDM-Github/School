@@ -3,7 +3,7 @@
 
 const express = require("express");
 const { Op } = require("sequelize");
-const { StudentGrade, StudentAccount, Student, Section, Subject, Adviser, SHSSF9 } = require("../models/Models");
+const { StudentGrade, StudentAccount, Student, Section, Subject, Adviser, SHSSF9, SchoolYear } = require("../models/Models");
 
 class StudentGradeRouter {
 	constructor() {
@@ -69,6 +69,15 @@ class StudentGradeRouter {
 					studentGrades.map((g) => [g.subject_id, g.subject])
 				);
 
+				let isPublished = false;
+				// const schoolYears = await SchoolYear.findAll();
+				// if (schoolYears.length > 1) {
+				// 	const lastYear = schoolYears[schoolYears.length - 2];
+				// 	if (lastYear.isPublished) {
+				// 		isPublished = true;
+				// 	}
+				// }
+
 				const result = students.reduce((newAcc, student) => {
 					const acc = student.account || {};
 
@@ -115,11 +124,14 @@ class StudentGradeRouter {
 					const adviser = adviserMap[student.section_id];
 					const shssf9 = adviser ? shssf9Map[adviser.shs_sf9_id] : null;
 
-					if (shssf9 && shssf9.current_status !== "COMPLETED") {
+					if (isPublished) {
+						if (subjGrades.every((s) => s.final >= 75)) status = "Passed";
+						else status = "Failed";
+					} else if (shssf9 && shssf9.current_status !== "COMPLETED") {
 						status = "Pending Finalization";
 					}
-					const passed = status === "Passed";
 
+					const passed = !isPublished && status === "Passed";
 					if (student.school_year !== schoolYear) {
 						if (student.isNew && student.startedSY === schoolYear) {
 							newAcc.push({

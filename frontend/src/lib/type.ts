@@ -113,7 +113,12 @@ export interface Adviser {
     program: string;
     school_year: string;
     grade_level: string;
-    account: { id: number; name: string; age: number; sex: string, email: string; };
+    account: {
+        firstName: string;
+        middleName: string;
+        lastName: string;
+        suffix: string; id: number; name: string; age: number; sex: string, email: string;
+    };
     section: { id: number; section_name: string };
     subjectStatuses: { id: number; subject: { id: number; name: string }; is_completed: boolean }[];
     studentCounts: { male: number, female: number, total: number };

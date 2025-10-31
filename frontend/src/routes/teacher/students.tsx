@@ -171,12 +171,13 @@ export default function StudentsByAdviser() {
             >
                 <div className="flex items-center justify-between mb-4 sticky top-0 bg-gray-50 z-50 pb-2 shadow-sm">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">Adviser’s Students</h1>
+                        <h1 className="text-2xl font-bold text-gray-800">Adviser's Students</h1>
                         <span className="text-sm text-gray-500">
                             School Year: {currentSY} | Adviser: {adviserName || "Loading..."}
                         </span>
                     </div>
                 </div>
+
 
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500">
@@ -247,6 +248,7 @@ export default function StudentsByAdviser() {
                         subjectMap={subjectMap}
                         handleSave={handleSave}
                         onMonthClick={handleMonthClick}
+                        handleAttendanceChange={handleAttendanceChange}
                     />
                 )}
             </motion.div>

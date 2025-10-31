@@ -15,7 +15,7 @@ const AdviserAccount = sequelize.define(
         age: { type: DataTypes.INTEGER, allowNull: true, validate: { min: 1 } },
         sex: { type: DataTypes.ENUM("Male", "Female", "Other"), allowNull: false },
         email: { type: DataTypes.STRING, allowNull: true, unique: true },
-        password: { type: DataTypes.STRING, allowNull: false },
+        password: { type: DataTypes.STRING, allowNull: false }
     },
     {
         timestamps: true,
