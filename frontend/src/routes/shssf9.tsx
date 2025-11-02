@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ChevronDown, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import SemesterMasterlistTable from "../components/shssf9/SemesterMasterlist";
 import SummaryTable from "../components/shssf9/SummaryTable";
@@ -15,8 +15,7 @@ export default function SHSSF9() {
     const [error, setError] = useState<string | null>(null);
     const [grade11Data, setGrade11Data] = useState<SemesterMasterlist[]>([]);
     const [grade12Data, setGrade12Data] = useState<SemesterMasterlist[]>([]);
-    const [viewType, setViewType] = useState<"Detailed" | "Summary">("Summary");
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [viewType, __] = useState<"Detailed" | "Summary">("Summary");
 
     const fetchAdvisers = async () => {
         setLoading(true);

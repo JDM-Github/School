@@ -9,9 +9,10 @@ const pg = require("pg");
 const isDev = process.env.MODE === "development";
 
 const sequelize = new Sequelize(
-	isDev
-		? `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`
-		: process.env.DATABASE_URL,
+	// isDev
+	// 	? `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`
+	// 	: process.env.DATABASE_URL,
+	"postgresql://neondb_owner:npg_UETgBs5qG4ce@ep-divine-hill-ah02rx3p-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
 	{
 		dialect: "postgres",
 		dialectModule: pg,

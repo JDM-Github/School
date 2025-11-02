@@ -4,7 +4,7 @@
 require("dotenv").config();
 const { sequelize } = require("./models/Models.js");
 
-const SCHEMA_NAME = "school_management"; 
+// const SCHEMA_NAME = "school_management"; 
 
 async function migrateAll() {
     try {
@@ -12,9 +12,9 @@ async function migrateAll() {
         await sequelize.authenticate();
         console.log("✅ Connection established successfully.");
 
-        console.log(`🏗️ Ensuring schema "${SCHEMA_NAME}" exists...`);
-        await sequelize.createSchema(SCHEMA_NAME, { ifNotExists: true });
-        console.log(`✅ Schema "${SCHEMA_NAME}" ready.`);
+        // console.log(`🏗️ Ensuring schema "${SCHEMA_NAME}" exists...`);
+        // await sequelize.createSchema(SCHEMA_NAME, { ifNotExists: true });
+        // console.log(`✅ Schema "${SCHEMA_NAME}" ready.`);
 
         console.log("🔄 Running migrations...");
         await sequelize.sync({ force: true }); // recreate all tables under schema

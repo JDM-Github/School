@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Calculator, Upload, Download } from "lucide-react";
+import { Calculator, Download } from "lucide-react";
 // import * as XLSX from "xlsx";
 // import { saveAs } from "file-saver";
 import { Formula } from "../components/kpi/Formula";

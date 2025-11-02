@@ -18,6 +18,11 @@ const SHSSF9 = require('./models/SHSSF9Model.js');
 const SHSSF2 = require('./models/SHSSF2Model.js');
 const SubjectStatus = require('./models/SubjectStatusModel.js');
 const StudentGrade = require("./models/StudentGradeModel.js");
+const Group = require("./models/GroupModel.js");
+const SchoolYear = require("./models/SchoolYearModel.js");
+const SpecializedSubject = require("./models/SpecializedSubjectsModel.js");
+const CoreSubject = require("./models/CoreSubjectsModel.js");
+const AppliedSubject = require("./models/AppliedSubjectsModel.js");
 
 function getRandomAttendanceDays(year, month, minDays = 1, maxDays = 5) {
     const totalDays = getDaysInMonth(new Date(year, month, 1));
@@ -28,6 +33,54 @@ function getRandomAttendanceDays(year, month, minDays = 1, maxDays = 5) {
     }
     return Array.from(days).map(String);
 }
+
+async function destroyAll() {
+    await sequelize.authenticate();
+    const queryInterface = sequelize.getQueryInterface();
+
+    const models = [
+        StudentGrade,
+        SubjectStatus,
+        SHSSF2,
+        SHSSF9,
+        AdviserAccount,
+        Adviser,
+        StudentAccount,
+        Student,
+        SubjectAttendance,
+        Attendance,
+        Section,
+        Subject,
+        Group,
+        SchoolYear,
+        AppliedSubject,
+        CoreSubject,
+        SpecializedSubject
+    ];
+
+    await queryInterface.bulkDelete("Subjects", null, {});
+    await queryInterface.bulkDelete("StudentGrades", null, {});
+    await queryInterface.bulkDelete("Groups", null, {});
+    await queryInterface.bulkDelete("Students", null, {});
+    await queryInterface.bulkDelete("SchoolYears", null, {});
+    await queryInterface.bulkDelete("AppliedSubjects", null, {});
+    await queryInterface.bulkDelete("CoreSubjects", null, {});
+    await queryInterface.bulkDelete("SpecializedSubjects", null, {});
+
+    // Destroy all models with truncation and identity reset
+    for (const model of models) {
+        await model.destroy({
+            where: {},
+            truncate: true,
+            cascade: true,
+            restartIdentity: true,
+        });
+        console.log(`Destroyed: ${model.name}`);
+    }
+
+    console.log("✅ All tables cleared.");
+}
+
 
 class Seeder {
     static randomChoice(arr) {
@@ -40,12 +93,15 @@ class Seeder {
 
     static async initDB(force = false) {
         console.log(`🔄 Syncing database... (force: ${force})`);
-        await sequelize.sync({ force });
+        await sequelize.sync({ force: true });
+        // await destroyAll();
         console.log("✅ Database ready!\n");
     }
 
     static async seedBaseData() {
+        await sequelize.authenticate();
         const queryInterface = sequelize.getQueryInterface();
+
         console.log("🌱 Starting base data seed...");
 
         const subjects = [
@@ -132,7 +188,7 @@ class Seeder {
         ]);
     }
 
-    static async setAdviserAccounts(count = 50) {
+    static async setAdviserAccounts(count = 10) {
         console.log(`👤 Seeding ${count} adviser accounts...`);
         const password = await bcrypt.hash("123", 10);
 
@@ -255,7 +311,7 @@ class Seeder {
         console.log(`🎓 Seeding student records...`);
 
         const sectionSet = new Set();
-        while (sectionSet.size < 20) {
+        while (sectionSet.size < 10) {
             const letter = faker.string.alpha({ casing: "upper", length: 1 });
             const number = faker.number.int({ min: 1, max: 9 });
             sectionSet.add(`${letter}${number}`);
@@ -517,9 +573,9 @@ class Seeder {
 
 if (require.main === module) {
     (async () => {
-        await Seeder.initDB(false);
+        await Seeder.initDB(true);
         await Seeder.seedBaseData();
-        await Seeder.seedStudentAccounts(200);
+        await Seeder.seedStudentAccounts(20);
         await Seeder.seedStudents();
 
         await Seeder.setAdviserAccounts();

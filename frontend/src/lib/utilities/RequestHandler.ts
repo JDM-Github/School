@@ -3,8 +3,8 @@ export default class RequestHandler {
 	// static baseURL = RequestHandler.development
 	// 	? import.meta.env.VITE_DEVELOPMENT_URL
 	// 	: import.meta.env.VITE_DEPLOYMENT_URL;
-	// static baseURL = "https://agribot-hydro-nft-admin.netlify.app"
-	static baseURL = "http://localhost:8888"
+	// static baseURL = "http://localhost:8888"
+	static baseURL = "https://shs-paranaque-test.netlify.app"
 	static apiLink = ".netlify/functions/api";
 
 	static async fetchData(

@@ -19,16 +19,17 @@ const AdviserAccount = require("./AdviserAccountModel.js");
 const Question = require("./QuestionModel.js");
 const SubjectQuestions = require("./SubjectQuestionsModel.js");
 const StudentResults = require("./StudentResultsModel.js");
-const StudentAccount = require("./StudentAccountModel.js")
-const StudentGrade = require("./StudentGradeModel.js")
+const StudentAccount = require("./StudentAccountModel.js");
+const StudentGrade = require("./StudentGradeModel.js");
 
-
+// ===== STUDENT–SECTION RELATION =====
 Section.hasMany(Student, { foreignKey: "section_id", as: "students" });
 Student.belongsTo(Section, { foreignKey: "section_id", as: "section" });
 
-
+// ===== ATTENDANCE RELATIONS =====
 Attendance.hasMany(Student, { foreignKey: "attendance_id", as: "students" });
 Student.belongsTo(Attendance, { foreignKey: "attendance_id", as: "attendance" });
+
 Attendance.belongsToMany(SubjectAttendance, {
 	through: "Attendance_SubjectAttendance",
 	as: "subjectAttendances",
@@ -44,6 +45,7 @@ SubjectAttendance.belongsToMany(Attendance, {
 Subject.hasMany(SubjectAttendance, { foreignKey: "subject_id", as: "attendances" });
 SubjectAttendance.belongsTo(Subject, { foreignKey: "subject_id", as: "subject" });
 
+// ===== SUBJECT–STUDENT RELATIONS =====
 Subject.hasMany(StudentGrade, { foreignKey: "subject_id", as: "grades" });
 StudentGrade.belongsTo(Subject, { foreignKey: "subject_id", as: "subject" });
 
@@ -60,8 +62,21 @@ Subject.belongsToMany(Student, {
 	otherKey: "student_id",
 });
 
+// ===== SUBJECT QUESTIONS RELATION =====
+Subject.hasMany(SubjectQuestions, {
+	foreignKey: "subject_id",
+	as: "subjectQuestions",
+	onUpdate: "CASCADE",
+	onDelete: "CASCADE",
+});
+SubjectQuestions.belongsTo(Subject, {
+	foreignKey: "subject_id",
+	as: "subject",
+	onUpdate: "CASCADE",
+	onDelete: "CASCADE",
+});
 
-
+// ===== GROUP–SUBJECT TYPE RELATIONS =====
 Group.belongsTo(AppliedSubject, {
 	foreignKey: "applied_subjects_id",
 	as: "appliedSubjects",
@@ -81,14 +96,12 @@ AppliedSubject.belongsToMany(Subject, {
 	foreignKey: "applied_subject_id",
 	otherKey: "subject_id",
 });
-
 SpecializedSubject.belongsToMany(Subject, {
 	through: "SpecializedSubjects_Subjects",
 	as: "subjects",
 	foreignKey: "specialized_subject_id",
 	otherKey: "subject_id",
 });
-
 CoreSubject.belongsToMany(Subject, {
 	through: "CoreSubject_Subjects",
 	as: "subjects",
@@ -96,18 +109,17 @@ CoreSubject.belongsToMany(Subject, {
 	otherKey: "subject_id",
 });
 
+// ===== STUDENT ACCOUNT RELATION =====
 StudentAccount.hasMany(Student, {
 	foreignKey: "student_account_id",
 	as: "records",
 });
-
 Student.belongsTo(StudentAccount, {
 	foreignKey: "student_account_id",
 	as: "account",
 });
 
-
-// ADVISER
+// ===== ADVISER RELATIONS =====
 SubjectStatus.belongsTo(Subject, { foreignKey: "subject_id", as: "subject" });
 Subject.hasMany(SubjectStatus, { foreignKey: "subject_id", as: "subjectStatuses" });
 
@@ -155,10 +167,7 @@ SHSSF2.hasOne(Adviser, {
 	as: "adviser",
 });
 
-
-
-
-
+// ===== EXPORT MODELS =====
 module.exports = {
 	sequelize,
 	Student,

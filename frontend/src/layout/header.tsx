@@ -1,4 +1,4 @@
-import { Home, Search, LogOut, Key } from "lucide-react";
+import { Home, Search, LogOut } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import Cookies from "js-cookie";
@@ -38,10 +38,6 @@ export default function Header() {
         localStorage.removeItem("user");
         navigate("/");
         window.location.reload();
-    }
-
-    const updatePassword = async () => {
-        alert(JSON.stringify(user));
     }
 
     // const [showNotifications, setShowNotifications] = useState(false);

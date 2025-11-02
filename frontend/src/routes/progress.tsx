@@ -38,8 +38,8 @@ export default function SHSStudentProgress() {
     const [viewGrade, setViewGrade] = useState<"Grade 11" | "Grade 12">("Grade 11");
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [students, setStudents] = useState<StudentGrade[]>([]);
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [_, setError] = useState<string | null>(null);
+    const [__, setLoading] = useState(false);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.[0]) return;

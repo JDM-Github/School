@@ -14,8 +14,8 @@ export default function ChangeSYModal({ open, onOpenChange }: ChangeSYModalProps
     const { role } = useAuth();
     const { currentSY, setSY } = useSY();
     const [newSY, setNewSY] = useState<string>(currentSY);
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [_, setError] = useState<string | null>(null);
+    const [__, setLoading] = useState(false);
     const [syOptions, setSyOptions] = useState([currentSY]);
 
     const fetchSchoolYear = async () => {
