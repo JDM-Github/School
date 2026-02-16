@@ -28,6 +28,17 @@ if (DEVELOPMENT) {
 } else {
 	app.use(cors());
 }
+
+// -------------------------------------------------------------------------------
+// APP MIDDLEWARE - INCREASED PAYLOAD LIMITS FOR DATABASE BACKUPS
+// -------------------------------------------------------------------------------
+// Increase limit to 50MB for large database backups
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.static(path.join(__dirname, "../client/build")));
+
 // -------------------------------------------------------------------------------
 // ALL ROUTES
 // -------------------------------------------------------------------------------
@@ -46,13 +57,12 @@ router.use("/student-account", require("../routes/StudentAccountRouter.js"));
 router.use("/school-year", require("../routes/SchoolYearRouter.js"));
 router.use("/student-grade", require("../routes/StudentGradeRouter.js"));
 
+router.use("/backup", require("../routes/BackupRouter.js"));
+
 
 // -------------------------------------------------------------------------------
 // APP MIDDLEWARE
 // -------------------------------------------------------------------------------
-app.use(bodyParser.json());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "../client/build")));
 
 // Set base path for serverless functions
 app.use("/.netlify/functions/api", router);

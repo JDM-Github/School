@@ -70,6 +70,7 @@ type SchoolYear = string[];
 export default function SchoolYearBuilder() {
     // SY
     const { currentSY } = useSY();
+    const isDebugging = true;
     const [isYearsFetch, setIsYearsFetch] = useState(false);
     const [currentSchoolyear, setCurrentSchoolyear] = useState<string>(currentSY);
     const [currentLatestSY, setCurrentLatestSY] = useState<string>(currentSY);
@@ -668,13 +669,13 @@ export default function SchoolYearBuilder() {
 
                                 <button
                                     onClick={handleCreateSY}
-                                    disabled={!canCreateSY}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-all duration-150 ${canCreateSY
+                                    disabled={!canCreateSY && !isDebugging}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium shadow-sm transition-all duration-150 ${canCreateSY || isDebugging
                                         ? "bg-green-600 hover:bg-green-700 text-white"
                                         : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                         }`}
                                 >
-                                    {canCreateSY
+                                    {canCreateSY || isDebugging
                                         ? schoolYearMap[currentSchoolyear]?.[
                                             gradeForSY === "Grade 11" ? "isGrade11Created" : "isGrade12Created"
                                         ]
@@ -708,11 +709,18 @@ export default function SchoolYearBuilder() {
                     </div>
                 </div>
                 {!isDisable && !canCreateSY && (
-                    <p className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded-md">
-                        ⚠️ Currently, you can't create a new School Year. This action is only
-                        available between <span className="font-medium">March and May</span>,
-                        when the current school year is ending.
-                    </p>
+                    <>
+
+                        {isDebugging ? (
+                            <p className="text-sm text-gray-600 bg-blue-50 border border-blue-200 px-3 py-2 rounded-md mt-2">
+                                🛠️ Debug Mode is enabled. You can create a new School Year despite the restrictions.
+                            </p>
+                        ) : <p className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded-md">
+                            ⚠️ Currently, you can't create a new School Year. This action is only
+                            available between <span className="font-medium">March and May</span>,
+                            when the current school year is ending.
+                        </p>}
+                    </>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-1 gap-4 h-[100vh] max-h-[55vh] overflow-y-auto p-2 bg-gray-200 rounded-xl mr-3 border-gray-400 border-2">
                     {paginatedSections.map((sec) => {
